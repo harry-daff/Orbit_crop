@@ -1,12 +1,15 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root { font-family: 'DM Sans', sans-serif; color: #1c3025; background: #f5f7f1; font-synthesis: none; }
+:root { font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif; color: #1c3025; background: #f5f7f1; font-synthesis: none; }
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; }
 button, input, select { font: inherit; }
-.leaflet-container { height: 100%; width: 100%; border-radius: 15px; z-index: 1; }
-.leaflet-control-attribution { font-size: 9px !important; }
+.font-display { font-family: 'Manrope', 'DM Sans', ui-sans-serif, system-ui, sans-serif; }
+.form-input { display: block; width: 100%; border: 1px solid #e7ebe4; border-radius: 12px; background: white; padding: 10px 12px; font-size: 12px; font-weight: 600; color: #26372b; outline: none; }
+.form-input:focus { border-color: #86a979; box-shadow: 0 0 0 3px rgb(125 166 103 / 13%); }
+.farm-map { width: 100%; height: 100%; min-height: 330px; z-index: 0; }
+.map-pin-dot { display: block; width: 17px; height: 17px; border: 3px solid #fff; border-radius: 50%; background: #315e41; box-shadow: 0 1px 7px #14201799; }
+.leaflet-container { font-family: 'DM Sans', sans-serif; }
 .scrollbar-hide::-webkit-scrollbar { display: none; }
