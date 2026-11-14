@@ -1,0 +1,12 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { font-family: 'DM Sans', sans-serif; color: #1c3025; background: #f5f7f1; font-synthesis: none; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; }
+button, input, select { font: inherit; }
+.leaflet-container { height: 100%; width: 100%; border-radius: 15px; z-index: 1; }
+.leaflet-control-attribution { font-size: 9px !important; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
