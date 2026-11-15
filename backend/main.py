@@ -9,6 +9,7 @@ from typing import Any, Literal
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, model_validator
 
 from .nasa_service import NasaPowerError, fetch_field_power_data, geodesic_area_hectares, monthly_climatology, soil_health_status
@@ -289,3 +290,10 @@ def soil_profile(request: PlanRequest) -> dict[str, Any]:
         return fetch_soil_texture(request.latitude, request.longitude)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+# In production, serve the built PWA and API from one origin. In local Vite
+# development this directory is absent, so FastAPI remains API-only.
+_FRONTEND_DIST = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend", "dist")
+if os.path.isdir(_FRONTEND_DIST):
+    app.mount("/", StaticFiles(directory=_FRONTEND_DIST, html=True), name="frontend")

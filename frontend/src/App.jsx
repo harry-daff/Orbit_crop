@@ -8,7 +8,7 @@ const CropSuitabilityPanel = lazy(() => import('./components/CropSuitabilityPane
 const SoilProfilePanel = lazy(() => import('./components/SoilProfilePanel.jsx'))
 const DisasterAlerts = lazy(() => import('./components/DisasterAlerts.jsx'))
 
-const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
+const API = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://127.0.0.1:8000' : '')
 const NAV = [
   { id: 'overview', label: 'Field overview', icon: Compass, group: 'FIELD' },
   { id: 'calendar', label: 'Crop calendar', icon: CalendarDays, group: 'PLAN' },

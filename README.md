@@ -31,6 +31,14 @@ Orbit_crop/
 
 Requires Python 3.10+ and Node.js 18+.
 
+## Public hosting
+
+The root `Dockerfile` builds the PWA and runs it with FastAPI from one service. `render.yaml` describes a free Render web service with `/api/health` as its health check. To provision the public HTTPS deployment, sign in to Render and use this repository's deploy flow:
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2Fharry-daff%2FOrbit_crop)
+
+Review the Blueprint and choose **Apply**. Render then builds the Docker image and assigns the service its public `onrender.com` HTTPS URL. The first request after a long idle period can be delayed on the free plan. After deployment, open the generated URL on a phone or PC and install Orbit Crop from the app header or browser menu. See [Render's free instance limits](https://render.com/docs/free).
+
 The map uses public OpenStreetMap raster tiles and NASA GIBS imagery; no map API key is needed. The public OSM tile service is community-operated and has a usage policy, so high-traffic production deployments should select a tile provider or self-hosted tile cache that matches expected usage. Copy `frontend/.env.example` to `frontend/.env.local` only if you need to change `VITE_API_URL`.
 
 ### Start the backend
