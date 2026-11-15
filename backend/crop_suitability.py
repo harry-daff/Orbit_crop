@@ -37,7 +37,7 @@ def _rotation_advice(name: str, crop: dict[str, Any], previous_crop: str) -> lis
     if previous in HEAVY_FEEDERS and crop.get("family") != "legume":
         advice.append(f"Rotation warning: after {previous_crop}, consider a legume or cover crop before another non-legume.")
     previous_info = next((info for crop_name, info in CROPS.items() if crop_name.lower() == previous), None)
-    previous_family = previous_info.get("botanical_family") if previous_info else None
+    previous_family = previous_info.get("botanical_family") if previous_info else ("Poaceae" if previous == "sugarcane" else None)
     current_family = crop.get("botanical_family")
     if previous_family and current_family and previous_family == current_family:
         advice.append(f"Family-break warning: {name} shares {current_family} with the previous crop; rotate families where practical.")
@@ -78,8 +78,9 @@ def _score_one(name: str, crop: dict[str, Any], climate: dict[str, Any], profile
     if temp_fit is not None: criteria.append(("temperature", temp_fit, 0.22))
     if soil_type is not None:
         matches = [item.lower() for item in crop.get("soils", [])]
-        fit = 1.0 if soil_type in matches or "loamy" in matches and soil_type == "loamy" else 0.35
-        criteria.append(("texture", fit, 0.15))
+        if matches:
+            fit = 1.0 if soil_type in matches or ("loamy" in matches and soil_type == "loamy") else 0.35
+            criteria.append(("texture", fit, 0.15))
     if ph is not None:
         ph_limits = crop.get("ph")
         if ph_limits and len(ph_limits) >= 2:

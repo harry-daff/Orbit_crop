@@ -281,3 +281,19 @@ def test_full_report_http_route_degrades_gracefully_if_every_provider_is_down(mo
     assert data["soil_moisture"]["status"] == "unavailable"
     assert data["analysis"]["climate_classification"] == "Climate data unavailable"
     assert data["crop_suitability"]["recommendations"]
+
+
+def test_full_report_accepts_long_previous_crop_with_boundary():
+    polygon = {"type": "Feature", "geometry": {"type": "Polygon", "coordinates": [[[0, 0], [0.01, 0], [0.01, 0.01], [0, 0.01], [0, 0]]]}}
+    long_crop = "Traditional High-Altitude Aromatic Basmati Rice"  # 47 chars
+    req = FullSoilReportRequest(latitude=10, longitude=20, previous_crop=long_crop, years=1, field_geojson=polygon)
+    assert req.previous_crop == long_crop
+
+
+def test_sugarcane_rotation_warns_on_poaceae_repeat():
+    from backend.rotation_engine import validate_rotation_sequence
+    sequence = [{"crop": "Rice", "family": "cereal", "botanical_family": "Poaceae"}]
+    result = validate_rotation_sequence(sequence, previous_crop="Sugarcane")
+    types = {warning["type"] for warning in result["warnings"]}
+    assert "nitrogen_break" in types
+    assert "family_repeat" in types

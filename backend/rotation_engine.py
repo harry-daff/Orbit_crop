@@ -78,6 +78,9 @@ BOTANICAL_FAMILIES = {
     "Rice": "Poaceae", "Maize": "Poaceae", "Wheat": "Poaceae", "Millets": "Poaceae (species dependent)",
     "Sorghum": "Poaceae", "Cotton": "Malvaceae", "Vegetables": "Species dependent", "Sunflower": "Asteraceae",
 }
+KNOWN_BOTANICAL_FAMILIES = {
+    "sugarcane": "Poaceae",
+}
 for _crop_name, _botanical_family in BOTANICAL_FAMILIES.items():
     CROPS[_crop_name]["botanical_family"] = _botanical_family
 
@@ -110,6 +113,9 @@ def analyze_site(monthly: list[dict[str, Any]], soil_type: str, previous_crop: s
     mean_wet = sum(wetness) / len(wetness) if wetness else None
     wettest = max((m for m in monthly if m.get("rainfall_mm_day") is not None), key=lambda m: m["rainfall_mm_day"])
     driest = min((m for m in monthly if m.get("rainfall_mm_day") is not None), key=lambda m: m["rainfall_mm_day"])
+    from .country_profiles import get_country_profile
+    profile = get_country_profile(country_code) if adapt_to_country else None
+    priority_crops_set = {crop.lower() for crop in profile["priority_crops"]} if profile else set()
     scored = []
     for name, info in CROPS.items():
         rlo, rhi = info["water"]; tlo, thi = info["temp"]
@@ -129,9 +135,7 @@ def analyze_site(monthly: list[dict[str, Any]], soil_type: str, previous_crop: s
             score -= 0.16; reasons.append("Reduced to help break cereal pest/disease cycles")
         if mean_wet is not None and mean_wet > 0.75 and "Clay" not in info["soils"]:
             score -= 0.08; reasons.append("High root-zone wetness raises drainage risk")
-        from .country_profiles import get_country_profile
-        profile = get_country_profile(country_code) if adapt_to_country else None
-        if profile and name.lower() in {crop.lower() for crop in profile["priority_crops"]}:
+        if priority_crops_set and name.lower() in priority_crops_set:
             score += 0.08
             reasons.append(f"Country staple-priority signal: {profile['country']}")
         risk = "High" if score < 0.35 or name in {"Cotton", "Vegetables"} else "Medium" if score < 0.62 else "Low–medium"
@@ -190,11 +194,21 @@ def custom_crop_profile(name: str, botanical_family: str = "Unknown") -> dict[st
 def validate_rotation_sequence(sequence: list[dict[str, Any]], previous_crop: str | None = None) -> dict[str, Any]:
     """Warn on adjacent botanical-family repeats and nitrogen-depleting sequences."""
     warnings = []
-    if sequence and (previous_crop or "").strip().lower() in HEAVY_FEEDERS:
+    prev_clean = (previous_crop or "").strip().lower()
+    if sequence:
         first = sequence[0]
-        family = (first.get("botanical_family") or "").lower()
-        if first.get("family") != "legume" and "fabaceae" not in family:
-            warnings.append({"season": 1, "type": "nitrogen_break", "message": f"After {previous_crop}, consider a legume or cover crop before another non-legume."})
+        first_family = (first.get("botanical_family") or "").lower()
+        if prev_clean in HEAVY_FEEDERS:
+            if first.get("family") != "legume" and "fabaceae" not in first_family:
+                warnings.append({"season": 1, "type": "nitrogen_break", "message": f"After {previous_crop}, consider a legume or cover crop before another non-legume."})
+        prev_family = KNOWN_BOTANICAL_FAMILIES.get(prev_clean)
+        if not prev_family:
+            prev_info = next((info for cname, info in CROPS.items() if cname.lower() == prev_clean), None)
+            prev_family = (prev_info.get("botanical_family") or "").lower() if prev_info else None
+        else:
+            prev_family = prev_family.lower()
+        if prev_family and prev_family != "unknown" and "species dependent" not in prev_family and first_family and first_family != "unknown" and "species dependent" not in first_family and prev_family == first_family:
+            warnings.append({"season": 1, "type": "family_repeat", "message": f"{first.get('crop')} shares {first.get('botanical_family')} with the previous crop ({previous_crop}); consider a family break to reduce shared pest and disease pressure."})
     for index in range(1, len(sequence)):
         previous, current = sequence[index - 1], sequence[index]
         before_family = (previous.get("botanical_family") or "Unknown").lower()

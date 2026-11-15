@@ -1,0 +1,16 @@
+{
+  "id": "/",
+  "name": "Orbit Crop — Farm Planner",
+  "short_name": "Orbit Crop",
+  "description": "Crop planning, soil health, and farm disaster alerts.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f5f7f1",
+  "theme_color": "#315e41",
+  "categories": ["agriculture", "weather", "productivity"],
+  "icons": [
+    { "src": "/icons/orbit-crop.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

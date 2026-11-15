@@ -23,11 +23,11 @@ export default function SoilProfilePanel({ report, onRefresh, loading }) {
   const moisture = report?.soil_moisture || {}
   const openLandMap = soil.openlandmap_water_retention || {}
   const olmDepth = openLandMap.depths_cm?.[OLM_DEPTH[depth]] || {}
-  const fieldCapacity = selected.field_capacity_m3_m3 ?? (olmDepth.field_capacity_pct == null ? null : olmDepth.field_capacity_pct / 100)
-  const wiltingPoint = selected.wilting_point_m3_m3 ?? (olmDepth.wilting_point_pct == null ? null : olmDepth.wilting_point_pct / 100)
-  const hasSoilGridsRetention = selected.field_capacity_m3_m3 != null || selected.wilting_point_m3_m3 != null
   const hasOpenLandMapRetention = olmDepth.field_capacity_pct != null || olmDepth.wilting_point_pct != null
-  const retentionSource = hasSoilGridsRetention ? 'SoilGrids v2 modeled fallback' : hasOpenLandMapRetention ? 'OpenLandMap modeled estimate' : null
+  const hasSoilGridsRetention = selected.field_capacity_m3_m3 != null || selected.wilting_point_m3_m3 != null
+  const fieldCapacity = (olmDepth.field_capacity_pct == null ? null : olmDepth.field_capacity_pct / 100) ?? selected.field_capacity_m3_m3
+  const wiltingPoint = (olmDepth.wilting_point_pct == null ? null : olmDepth.wilting_point_pct / 100) ?? selected.wilting_point_m3_m3
+  const retentionSource = hasOpenLandMapRetention ? 'OpenLandMap modeled estimate' : hasSoilGridsRetention ? 'SoilGrids v2 modeled fallback' : null
   const availableWater = selected.plant_available_water_m3_m3 ?? (fieldCapacity != null && wiltingPoint != null ? Math.max(0, fieldCapacity - wiltingPoint) : null)
   const waterTable = report?.hydrology?.water_table
   const drainage = report?.hydrology?.drainage

@@ -219,6 +219,9 @@ async def build_full_soil_report(latitude: float, longitude: float, years: int =
             oml_surface_fc = oml.get("depths_cm", {}).get("0", {}).get("field_capacity_pct")
             if oml_surface_fc is not None:
                 surface_fc = oml_surface_fc / 100
+            oml_surface_wp = oml.get("depths_cm", {}).get("0", {}).get("wilting_point_pct")
+            if oml_surface_wp is not None:
+                surface_wp = oml_surface_wp / 100
             root_fc_values = [oml.get("depths_cm", {}).get(str(depth), {}).get("field_capacity_pct") for depth in (30, 60, 100)]
             root_wp_values = [oml.get("depths_cm", {}).get(str(depth), {}).get("wilting_point_pct") for depth in (30, 60, 100)]
             if any(value is not None for value in root_fc_values):

@@ -17,7 +17,11 @@ function MapEvents({ drawing, onVertex, onLocation }) {
 
 function Recenter({ latitude, longitude }) {
   const map = useMap()
-  useEffect(() => { map.flyTo([latitude, longitude], map.getZoom(), { duration: 0.6 }) }, [map, latitude, longitude])
+  useEffect(() => {
+    if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+      map.flyTo([latitude, longitude], map.getZoom(), { duration: 0.6 })
+    }
+  }, [map, latitude, longitude])
   return null
 }
 
@@ -25,7 +29,9 @@ export default function FarmMap({ latitude, longitude, polygon, setPolygon, onLo
   const [drawing, setDrawing] = useState(false)
   const [showNdvi, setShowNdvi] = useState(false)
   const [tileError, setTileError] = useState(false)
-  const center = useMemo(() => [latitude, longitude], [latitude, longitude])
+  const safeLat = Number.isFinite(latitude) ? latitude : 20.5937
+  const safeLng = Number.isFinite(longitude) ? longitude : 78.9629
+  const center = useMemo(() => [safeLat, safeLng], [safeLat, safeLng])
   const onVertex = useCallback(point => setPolygon(current => [...current, point]), [setPolygon])
   const closedRing = polygon.length >= 3 ? [...polygon, polygon[0]] : polygon
   const positions = closedRing.map(([lng, lat]) => [lat, lng])
@@ -38,8 +44,8 @@ export default function FarmMap({ latitude, longitude, polygon, setPolygon, onLo
     <div className="relative h-[370px] overflow-hidden rounded-2xl border border-[#dce3d9]">
       <MapContainer center={center} zoom={5} scrollWheelZoom className="farm-map">
         <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19} eventHandlers={{ tileerror: () => setTileError(true), tileload: () => setTileError(false) }} />
-        {showNdvi && <TileLayer attribution='Imagery &copy; <a href="https://earthdata.nasa.gov/">NASA GIBS</a>' url={`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_NDVI_8Day/default/${ndviTime}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png`} opacity={0.65} eventHandlers={{ tileerror: () => setTileError(true) }} />}
-        <MapEvents drawing={drawing} onVertex={onVertex} onLocation={onLocationChange}/><Recenter latitude={latitude} longitude={longitude}/>
+        {showNdvi && <TileLayer attribution='Imagery &copy; <a href="https://earthdata.nasa.gov/">NASA GIBS</a>' url={`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_NDVI_8Day/default/${ndviTime}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png`} opacity={0.65} eventHandlers={{ tileerror: () => setTileError(true), tileload: () => setTileError(false) }} />}
+        <MapEvents drawing={drawing} onVertex={onVertex} onLocation={onLocationChange}/><Recenter latitude={safeLat} longitude={safeLng}/>
         <Marker position={center} icon={markerIcon} draggable eventHandlers={{ dragend: handleDrag }}><Tooltip>Field reference point</Tooltip></Marker>
         {positions.length >= 3 && <Polygon positions={positions} pathOptions={{ color: '#e4f3a3', weight: 3, fillColor: '#8aba72', fillOpacity: 0.22 }} />}
         {polygon.map(([lng, lat], i) => <CircleMarker key={`${lng}-${lat}-${i}`} center={[lat, lng]} radius={6} pathOptions={{ color: 'white', weight: 2, fillColor: '#315e41', fillOpacity: 1 }}><Tooltip>Boundary point {i + 1}</Tooltip></CircleMarker>)}

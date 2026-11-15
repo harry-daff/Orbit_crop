@@ -4,6 +4,8 @@ Orbit_crop is a responsive crop planning dashboard with keyless Leaflet/OpenStre
 
 Custom crop requirements are looked up from a local FAO EcoCrop snapshot, distributed through the OpenCLIM project and pinned to commit `ea43ecd418fd1a1ea08d32c7dce64b7fae02dec4`. EcoCrop ranges are broad species-level ecological references; they are not calibrated success probabilities, yield estimates, or cultivar-specific prescriptions. Crops without a matched profile remain unrated. Source: [OpenCLIM EcoCrop dataset](https://github.com/OpenCLIM/ecocrop) and [FAO EcoCrop](https://ecocrop.apps.fao.org/).
 
+The Disaster Alerts center uses a 15-minute server cache over Open-Meteo forecast, GloFAS discharge and Copernicus GLO-90 elevation, plus nearby GDACS and NASA EONET events. NOAA/NWS CAP alerts are queried for US points. Other country CAP feeds can be added by setting `ORBIT_CAP_FEED_URL_<ISO2>` (for example `ORBIT_CAP_FEED_URL_IN`) to an official Atom/RSS CAP feed URL. Forecast risk levels are screening thresholds, not official warnings. Users can save emergency and agricultural extension telephone contacts in their browser for offline access.
+
 ## Project structure
 
 ```text
@@ -55,6 +57,12 @@ npm run dev
 ```
 
 Open `http://127.0.0.1:5173`.
+
+### Install on a phone or PC
+
+Orbit Crop is a Progressive Web App. Serve the production build from HTTPS (or use localhost on the same device), open it in a supported browser, then choose **Install app** in the app header or browser menu. On iPhone/iPad, open the site in Safari, tap **Share**, then **Add to Home Screen**. On desktop Chrome/Edge, use the install control in the address bar or browser menu. The PWA caches its application shell and static assets; live NASA, soil, geocoding, and forecast requests still need connectivity. Disaster reports and saved contacts are separately stored on the device for offline viewing.
+
+For local Wi-Fi testing from a phone, start Vite with `npm run dev -- --host 0.0.0.0`, allow ports 5173 and 8000 through the computer firewall, and set `VITE_API_URL` in `frontend/.env.local` to `http://<computer-LAN-IP>:8000`. Device GPS and PWA installation on a phone generally require HTTPS; localhost is treated as secure only on the device running the browser. For a public installable deployment, host the frontend over HTTPS and configure its API URL to the HTTPS backend.
 
 ### Tests and production build
 

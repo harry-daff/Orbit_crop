@@ -61,7 +61,8 @@ def _parse_profile(payload: dict[str, Any], latitude: float, longitude: float) -
         soc_g_kg = raw["soc"] / 10 if raw["soc"] is not None else None
         field_capacity = raw["wv0033"] / 1000 if raw["wv0033"] is not None else None
         wilting_point = raw["wv1500"] / 1000 if raw["wv1500"] is not None else None
-        porosity = max(0.0, min(0.8, 1 - bulk_density / 2.65 - (rock_pct or 0) / 100)) if bulk_density is not None else None
+        rock_vol_fraction = (rock_pct or 0.0) / 100.0
+        porosity = max(0.0, min(0.8, (1.0 - rock_vol_fraction) * (1.0 - bulk_density / 2.65))) if bulk_density is not None else None
         layers[depth] = {
             "texture_percent": texture_percent, "usda_texture_class": texture_class,
             "rock_fragments_percent": round(rock_pct, 1) if rock_pct is not None else None,

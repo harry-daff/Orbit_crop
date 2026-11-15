@@ -18,6 +18,7 @@ from .country_profiles import COUNTRY_PROFILES
 from .soil_profile_service import fetch_soil_texture
 from .full_soil_report import build_full_soil_report
 from .crop_suitability import rank_crops
+from .disaster_service import get_disaster_alerts
 
 import httpx
 
@@ -35,7 +36,7 @@ class PlanRequest(BaseModel):
     latitude: float = Field(ge=-90, le=90)
     longitude: float = Field(ge=-180, le=180)
     soil_type: Literal["Loamy", "Clay", "Sandy", "Laterite"]
-    previous_crop: str = Field(min_length=1, max_length=40)
+    previous_crop: str = Field(min_length=1, max_length=80)
     years: int = Field(default=3, ge=1, le=5)
     field_geojson: dict[str, Any] | None = None
     adapt_to_country: bool = False
@@ -130,9 +131,10 @@ async def full_soil_report(request: FullSoilReportRequest) -> dict[str, Any]:
         "area_hectares": geodesic_area_hectares(geometry["coordinates"][0]) if geometry else None,
         "sampling": {"method": "NASA POWER point grid" if not geometry else "NASA POWER polygon vertex sampling"},
     }
+    last_power_record = next((record for record in reversed(climate.get("daily", [])) if record.get("GWETROOT") is not None), None)
     report["soil_health"] = {
-        "root_zone_wetness": (climate.get("daily") or [{}])[-1].get("GWETROOT"),
-        "surface_wetness": (climate.get("daily") or [{}])[-1].get("GWETTOP"),
+        "root_zone_wetness": last_power_record.get("GWETROOT") if last_power_record else (climate.get("daily") or [{}])[-1].get("GWETROOT"),
+        "surface_wetness": last_power_record.get("GWETTOP") if last_power_record else (climate.get("daily") or [{}])[-1].get("GWETTOP"),
         "smap": {"status": "unavailable", "message": "NASA POWER SMAP alias is supplemental; Open-Meteo provides the current volumetric profile."},
         "texture": soil,
     }
@@ -183,8 +185,23 @@ async def geocode(q: str = Query(min_length=2, max_length=120)) -> dict[str, Any
         result = {"results": results, "provider": "Photon / OpenStreetMap"}
     except (httpx.HTTPError, ValueError, TypeError) as exc:
         result = {"results": [], "provider": "Photon / OpenStreetMap", "error": f"Place search is temporarily unavailable: {str(exc)[:180]}"}
-    _GEOCODE_CACHE[key] = (monotonic() + 3600, result)
+    cache_ttl = 15 if "error" in result else 3600
+    _GEOCODE_CACHE[key] = (monotonic() + cache_ttl, result)
     return result
+
+
+@app.get("/api/disaster-alerts")
+async def disaster_alerts(
+    lat: float = Query(ge=-90, le=90),
+    lon: float = Query(ge=-180, le=180),
+    crop: str | None = Query(default=None, max_length=80),
+    country: str | None = Query(default=None, min_length=2, max_length=2),
+) -> dict[str, Any]:
+    """Return a cached global hazard outlook and source-issued nearby alerts."""
+    try:
+        return await get_disaster_alerts(lat, lon, crop, country)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @app.get("/api/health")
