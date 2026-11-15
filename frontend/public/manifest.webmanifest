@@ -2,7 +2,7 @@
   "id": "/",
   "name": "Orbit Crop — Farm Planner",
   "short_name": "Orbit Crop",
-  "description": "Crop planning, soil health, and farm disaster alerts.",
+  "description": "SI-assisted crop planning, soil health, and farm disaster alerts.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

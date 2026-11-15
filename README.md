@@ -2,6 +2,10 @@
 
 Orbit_crop is a responsive crop planning dashboard with keyless Leaflet/OpenStreetMap field mapping, NASA POWER weather and solar history, SMAP moisture indicators, optional SoilGrids texture estimates, crop feasibility guidance, and an editable rotation planner.
 
+## SI generation and data provenance
+
+Orbit Crop code was SI-generated or SI-assisted. Crop suitability scores, rotation suggestions, and hazard screening levels are calculated by the application's rules and are SI-assisted derived outputs; treat them as planning aids and validate them locally. NASA, Open-Meteo, SoilGrids, and other external observations or model products retain the source attribution shown by the app and are **not** described as SI-generated. The application currently includes no SI-generated images, video, or audio. This disclosure is also provided as HTML metadata and through `GET /api/metadata` (`content_provenance`).
+
 Custom crop requirements are looked up from a local FAO EcoCrop snapshot, distributed through the OpenCLIM project and pinned to commit `ea43ecd418fd1a1ea08d32c7dce64b7fae02dec4`. EcoCrop ranges are broad species-level ecological references; they are not calibrated success probabilities, yield estimates, or cultivar-specific prescriptions. Crops without a matched profile remain unrated. Source: [OpenCLIM EcoCrop dataset](https://github.com/OpenCLIM/ecocrop) and [FAO EcoCrop](https://ecocrop.apps.fao.org/).
 
 The Disaster Alerts center uses a 15-minute server cache over Open-Meteo forecast, GloFAS discharge and Copernicus GLO-90 elevation, plus nearby GDACS and NASA EONET events. NOAA/NWS CAP alerts are queried for US points. Other country CAP feeds can be added by setting `ORBIT_CAP_FEED_URL_<ISO2>` (for example `ORBIT_CAP_FEED_URL_IN`) to an official Atom/RSS CAP feed URL. Forecast risk levels are screening thresholds, not official warnings. Users can save emergency and agricultural extension telephone contacts in their browser for offline access.

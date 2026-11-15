@@ -20,10 +20,11 @@ from .soil_profile_service import fetch_soil_texture
 from .full_soil_report import build_full_soil_report
 from .crop_suitability import rank_crops
 from .disaster_service import get_disaster_alerts
+from .provenance import SI_PROVENANCE
 
 import httpx
 
-app = FastAPI(title="Orbit_crop API", version="2.0.0", description="Field-aware NASA climate history and crop feasibility planning.")
+app = FastAPI(title="Orbit_crop API", version="2.0.0", description="Field-aware crop planning. Code and derived planning outputs are SI-assisted; fetched provider data retain their original attribution. See /api/metadata.")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[origin.strip() for origin in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",") if origin.strip()],
@@ -114,6 +115,7 @@ async def full_soil_report(request: FullSoilReportRequest) -> dict[str, Any]:
     analysis["custom_crop_check"] = crop_scores["custom_crop_check"]
     analysis["score_type"] = crop_scores["score_type"]
     report["analysis"] = analysis
+    report["content_provenance"] = SI_PROVENANCE
     # Keep the response shape consumed by the existing dashboard views.
     report["monthly"] = monthly
     report["daily"] = climate.get("daily", [])
@@ -200,7 +202,9 @@ async def disaster_alerts(
 ) -> dict[str, Any]:
     """Return a cached global hazard outlook and source-issued nearby alerts."""
     try:
-        return await get_disaster_alerts(lat, lon, crop, country)
+        report = await get_disaster_alerts(lat, lon, crop, country)
+        report["content_provenance"] = SI_PROVENANCE
+        return report
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
@@ -208,6 +212,12 @@ async def disaster_alerts(
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "service": "Orbit_crop API", "version": app.version}
+
+
+@app.get("/api/metadata")
+def metadata() -> dict[str, Any]:
+    """Return SI-generation disclosure and distinguish it from external source data."""
+    return {"service": "Orbit_crop", "content_provenance": SI_PROVENANCE}
 
 
 @app.get("/api/crops")
