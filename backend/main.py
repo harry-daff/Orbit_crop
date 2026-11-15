@@ -4,16 +4,22 @@ from __future__ import annotations
 
 import os
 import math
+from time import monotonic
 from typing import Any, Literal
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, model_validator
 
 from .nasa_service import NasaPowerError, fetch_field_power_data, geodesic_area_hectares, monthly_climatology, soil_health_status
-from .rotation_engine import analyze_site, catalog, custom_crop_profile, validate_rotation_sequence
+from .rotation_engine import CROPS, analyze_site, catalog, custom_crop_profile, validate_rotation_sequence
+from .ecocrop_service import lookup_ecocrop
 from .country_profiles import COUNTRY_PROFILES
 from .soil_profile_service import fetch_soil_texture
+from .full_soil_report import build_full_soil_report
+from .crop_suitability import rank_crops
+
+import httpx
 
 app = FastAPI(title="Orbit_crop API", version="2.0.0", description="Field-aware NASA climate history and crop feasibility planning.")
 app.add_middleware(
@@ -21,6 +27,8 @@ app.add_middleware(
     allow_origins=[origin.strip() for origin in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",") if origin.strip()],
     allow_credentials=True, allow_methods=["GET", "POST"], allow_headers=["*"],
 )
+
+_GEOCODE_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
 
 
 class PlanRequest(BaseModel):
@@ -59,6 +67,126 @@ class PlanRequest(BaseModel):
         return self
 
 
+class FullSoilReportRequest(BaseModel):
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+    soil_type: Literal["Loamy", "Clay", "Sandy", "Laterite"] | None = None
+    previous_crop: str = Field(default="Other", min_length=1, max_length=80)
+    years: int = Field(default=1, ge=1, le=5)
+    field_geojson: dict[str, Any] | None = None
+    country_code: str | None = Field(default=None, min_length=2, max_length=2)
+    adapt_to_country: bool = False
+    custom_crop_name: str | None = Field(default=None, max_length=80)
+    custom_crop_category: Literal["field_crop", "vegetable", "fruit"] = "field_crop"
+
+
+@app.post("/api/full-soil-report")
+async def full_soil_report(request: FullSoilReportRequest) -> dict[str, Any]:
+    """Aggregate cached Open-Meteo, NASA POWER, SoilGrids, and OpenLandMap products."""
+    geometry = None
+    if request.field_geojson is not None:
+        try:
+            parsed = PlanRequest(latitude=request.latitude, longitude=request.longitude, soil_type=request.soil_type or "Loamy", previous_crop=request.previous_crop, years=request.years, field_geojson=request.field_geojson)
+            geometry = parsed.field_geojson.get("geometry", parsed.field_geojson)
+        except Exception as exc:
+            raise HTTPException(status_code=422, detail=f"Invalid farm boundary: {exc}") from exc
+    try:
+        report = await build_full_soil_report(request.latitude, request.longitude, request.years, geometry)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    climate = report["climate"]
+    monthly = climate.get("monthly", [])
+    soil = report["soil_profile"]
+    detected = soil.get("depths", {}).get("0-5cm", {}).get("usda_texture_class")
+    detected_type = "Sandy" if detected and "sand" in detected.lower() and "clay" not in detected.lower() else "Clay" if detected and "clay" in detected.lower() and "loam" not in detected.lower() else "Loamy" if detected else None
+    selected_soil = detected_type or request.soil_type
+    planning_soil = selected_soil or "Loamy"  # Only the legacy climate-plan builder requires a soil category.
+    try:
+        analysis = analyze_site(monthly, planning_soil, request.previous_crop, request.country_code, request.adapt_to_country) if monthly else {"rotation_timeline": [], "summary": {}, "climate_classification": "Climate data unavailable", "water_availability": "unknown", "caveat": "NASA POWER history is unavailable; score confidence is reduced."}
+    except (ValueError, KeyError, TypeError):
+        analysis = {"rotation_timeline": [], "summary": {}, "climate_classification": "Climate data incomplete", "water_availability": "unknown", "caveat": "NASA POWER history is incomplete; validate all recommendations locally."}
+
+    crop_scores = rank_crops(climate, soil, report["soil_moisture"], request.previous_crop, request.custom_crop_name, request.custom_crop_category, request.country_code, request.adapt_to_country, selected_soil)
+    analysis["recommendations"] = crop_scores["recommendations"]
+    analysis["custom_crop_check"] = crop_scores["custom_crop_check"]
+    analysis["score_type"] = crop_scores["score_type"]
+    report["analysis"] = analysis
+    # Keep the response shape consumed by the existing dashboard views.
+    report["monthly"] = monthly
+    report["daily"] = climate.get("daily", [])
+    report["crop_suitability"] = crop_scores
+    report["selected_soil_type"] = selected_soil
+    report["soil_detection"] = {
+        "status": "detected" if detected else "manual" if request.soil_type else "unavailable",
+        "soil_type": detected or request.soil_type,
+        "texture_class": detected,
+        "source": soil.get("provider") if detected else "Farmer selection" if request.soil_type else None,
+        "message": f"SoilGrids topsoil texture resolved as {detected}." if detected else f"Using farmer-selected {request.soil_type} soil type." if request.soil_type else soil.get("message", "Soil type could not be auto-detected; choose a soil type or retry when the soil provider is available."),
+    }
+    report["previous_crop"] = request.previous_crop
+    report["field"] = {
+        "geojson": request.field_geojson,
+        "area_hectares": geodesic_area_hectares(geometry["coordinates"][0]) if geometry else None,
+        "sampling": {"method": "NASA POWER point grid" if not geometry else "NASA POWER polygon vertex sampling"},
+    }
+    report["soil_health"] = {
+        "root_zone_wetness": (climate.get("daily") or [{}])[-1].get("GWETROOT"),
+        "surface_wetness": (climate.get("daily") or [{}])[-1].get("GWETTOP"),
+        "smap": {"status": "unavailable", "message": "NASA POWER SMAP alias is supplemental; Open-Meteo provides the current volumetric profile."},
+        "texture": soil,
+    }
+    top_layer = soil.get("depths", {}).get("0-5cm", {})
+    texture_class = (top_layer.get("usda_texture_class") or "").lower()
+    drainage = "rapid drainage tendency" if "sand" in texture_class and "clay" not in texture_class else "slow drainage tendency" if "clay" in texture_class else "moderate drainage tendency" if texture_class else None
+    report["hydrology"] = {
+        "water_table": {"status": "unavailable", "depth_m": None, "message": "No parcel-scale groundwater-depth observation is supplied by the connected global soil and weather sources."},
+        "drainage": {"class": drainage, "method": "texture_screening_only" if drainage else None, "message": "Broad texture tendency, not an FAO drainage class or measured drainage rate." if drainage else "Needs a soil profile or field infiltration test."},
+    }
+    report["data_source"] = {
+        "name": climate.get("provider", "NASA POWER"), "url": climate.get("source_url"),
+        "start": climate.get("observed_start"), "end": climate.get("observed_end"),
+        "daily_records": len(climate.get("daily", [])), "time_standard": "UTC",
+        "solar_unit": climate.get("solar_unit", "kWh/m²/day"),
+        "hydrology_status": report["soil_moisture"].get("status", "unavailable"),
+    }
+    return report
+
+
+@app.get("/api/geocode")
+async def geocode(q: str = Query(min_length=2, max_length=120)) -> dict[str, Any]:
+    """Small cached Photon autocomplete proxy; avoids public Nominatim autocomplete."""
+    query = " ".join(q.split())
+    key = query.casefold()
+    cached = _GEOCODE_CACHE.get(key)
+    if cached and cached[0] > monotonic():
+        return cached[1]
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(4.5, connect=2.0), headers={"User-Agent": "Orbit_crop/1.0 (global farm location search)"}) as client:
+            response = await client.get("https://photon.komoot.io/api/", params={"q": query, "limit": 6, "lang": "en"})
+            response.raise_for_status()
+            payload = response.json()
+        if not isinstance(payload, dict) or not isinstance(payload.get("features", []), list):
+            raise ValueError("The place-search provider returned an invalid result list.")
+        results = []
+        for feature in payload.get("features", []):
+            if not isinstance(feature, dict):
+                continue
+            coordinates = feature.get("geometry", {}).get("coordinates", [])
+            properties = feature.get("properties", {})
+            if not isinstance(coordinates, list) or len(coordinates) < 2 or not all(isinstance(value, (int, float)) and math.isfinite(value) for value in coordinates[:2]):
+                continue
+            if not isinstance(properties, dict):
+                properties = {}
+            label = ", ".join(str(properties[field]) for field in ("name", "district", "city", "state", "country") if properties.get(field)) or "Unnamed place"
+            results.append({"label": label, "longitude": coordinates[0], "latitude": coordinates[1], "country_code": properties.get("countrycode")})
+        result = {"results": results, "provider": "Photon / OpenStreetMap"}
+    except (httpx.HTTPError, ValueError, TypeError) as exc:
+        result = {"results": [], "provider": "Photon / OpenStreetMap", "error": f"Place search is temporarily unavailable: {str(exc)[:180]}"}
+    _GEOCODE_CACHE[key] = (monotonic() + 3600, result)
+    return result
+
+
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "service": "Orbit_crop API", "version": app.version}
@@ -83,6 +211,12 @@ class CustomCropRequest(BaseModel):
 @app.post("/api/crops/custom")
 def create_custom_crop(request: CustomCropRequest) -> dict[str, Any]:
     try:
+        known = next((name for name in CROPS if name.casefold() == request.name.strip().casefold()), None)
+        if known:
+            return {"crop": known, **CROPS[known], "custom_match": True, "profile_source": "Orbit_crop curated crop catalog"}
+        profile = lookup_ecocrop(request.name)
+        if profile:
+            return profile
         return custom_crop_profile(request.name, request.botanical_family)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc

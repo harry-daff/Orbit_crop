@@ -126,7 +126,8 @@ def test_custom_crop_is_free_choice_and_does_not_invent_ranges():
     assert crop["crop"] == "Amaranth"
     assert crop["botanical_family"] == "Amaranthaceae"
     assert crop["temp"] is None and crop["water"] is None and crop["ph"] is None
-    assert len(crop["actions"]) >= 5
+    assert len(crop["actions"]) == 2
+    assert crop["profile_confidence"].startswith("Unrated")
 
 
 def test_rotation_warns_for_same_family_and_nitrogen_break():

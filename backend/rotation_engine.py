@@ -22,6 +22,57 @@ CROPS: dict[str, dict[str, Any]] = {
     "Sorghum": {"family": "cereal", "water": (0.8, 4.5), "temp": (20, 36), "soils": ["Loamy", "Clay", "Sandy", "Laterite"], "ph": [5.5, 8.0], "season": "Kharif or Rabi, region dependent", "sow": "At locally reliable rainfall onset", "harvest": "3–4 months after sowing", "irrigation": "Mostly rainfed; irrigate at booting/flowering during extended drought.", "risk": "Low–medium", "market": "Grain, fodder, and feed markets vary regionally", "yield": "1–4 t/ha grain, system dependent", "pros": ["Drought adaptation in suitable cultivars", "Grain and fodder uses"], "cons": ["Bird damage and grain mold in humid harvests", "Local market access can be limited"], "actions": ["Select a locally tested dual-purpose or grain cultivar.", "Prepare a weed-free seedbed and conserve soil moisture.", "Sow promptly after effective rainfall.", "Apply nutrients based on soil test and intended grain/fodder use.", "Scout for shoot fly, stem borer, and grain mold risk.", "Harvest at maturity and dry panicles/grain promptly."]},
 }
 
+EXPANDED_CROPS = {
+    # category, family, botanical family, rainfall mm/day, temperature °C, soil preferences, pH, root depth cm, rock tolerance %
+    "Cassava": ("field_crop", "tuber", "Euphorbiaceae", (1.5, 6.0), (20, 32), ["Loamy", "Sandy", "Laterite"], (5.0, 7.0), 100, 25),
+    "Taro": ("field_crop", "tuber", "Araceae", (3.0, 9.0), (21, 32), ["Loamy", "Clay"], (5.5, 7.0), 60, 12),
+    "Chickpea": ("field_crop", "legume", "Fabaceae", (0.8, 3.0), (15, 30), ["Loamy", "Sandy"], (6.0, 8.0), 90, 20),
+    "Pigeon pea": ("field_crop", "legume", "Fabaceae", (1.0, 5.0), (18, 35), ["Loamy", "Sandy", "Laterite"], (5.0, 7.5), 150, 25),
+    "Lentil": ("field_crop", "legume", "Fabaceae", (0.8, 3.0), (10, 25), ["Loamy", "Clay"], (6.0, 8.0), 80, 15),
+    "Mustard": ("field_crop", "oilseed", "Brassicaceae", (0.8, 3.0), (10, 28), ["Loamy", "Clay"], (6.0, 8.0), 100, 15),
+    "Tomato": ("vegetable", "vegetable", "Solanaceae", (1.5, 5.0), (18, 30), ["Loamy", "Sandy"], (5.5, 7.0), 80, 8),
+    "Onion": ("vegetable", "vegetable", "Amaryllidaceae", (1.0, 4.0), (12, 28), ["Loamy", "Sandy"], (6.0, 7.5), 45, 8),
+    "Potato": ("vegetable", "tuber", "Solanaceae", (1.5, 5.0), (10, 24), ["Loamy", "Sandy"], (5.0, 6.5), 60, 8),
+    "Chili pepper": ("vegetable", "vegetable", "Solanaceae", (1.5, 5.0), (20, 32), ["Loamy", "Sandy"], (5.5, 7.0), 70, 8),
+    "Eggplant": ("vegetable", "vegetable", "Solanaceae", (2.0, 6.0), (22, 32), ["Loamy", "Sandy"], (5.5, 7.0), 90, 8),
+    "Okra": ("vegetable", "vegetable", "Malvaceae", (1.5, 5.0), (22, 35), ["Loamy", "Sandy", "Laterite"], (6.0, 7.5), 100, 15),
+    "Leafy greens": ("vegetable", "vegetable", "Mixed species", (2.0, 6.0), (10, 26), ["Loamy", "Sandy"], (6.0, 7.0), 40, 5),
+    "Cucumber": ("vegetable", "vegetable", "Cucurbitaceae", (2.0, 6.0), (18, 30), ["Loamy", "Sandy"], (5.5, 7.0), 60, 8),
+    "Carrot": ("vegetable", "vegetable", "Apiaceae", (1.5, 4.0), (10, 25), ["Loamy", "Sandy"], (6.0, 7.0), 60, 5),
+    "Banana": ("fruit", "fruit", "Musaceae", (4.0, 10.0), (20, 35), ["Loamy", "Clay"], (5.5, 7.0), 100, 10),
+    "Mango": ("fruit", "fruit", "Anacardiaceae", (1.0, 6.0), (22, 35), ["Loamy", "Sandy", "Laterite"], (5.5, 7.5), 200, 25),
+    "Pineapple": ("fruit", "fruit", "Bromeliaceae", (2.0, 7.0), (20, 32), ["Sandy", "Loamy", "Laterite"], (4.5, 6.5), 60, 20),
+    "Papaya": ("fruit", "fruit", "Caricaceae", (3.0, 8.0), (21, 33), ["Loamy", "Sandy"], (5.5, 7.0), 100, 8),
+    "Citrus": ("fruit", "fruit", "Rutaceae", (2.0, 7.0), (15, 32), ["Loamy", "Sandy"], (5.5, 7.5), 150, 12),
+    "Coconut": ("fruit", "plantation", "Arecaceae", (4.0, 12.0), (22, 34), ["Sandy", "Loamy", "Laterite"], (5.0, 8.0), 150, 20),
+    "Grapes": ("fruit", "fruit", "Vitaceae", (0.8, 4.0), (15, 32), ["Loamy", "Sandy"], (5.5, 7.5), 180, 10),
+    "Apple": ("fruit", "fruit", "Rosaceae", (1.5, 5.0), (5, 24), ["Loamy", "Clay"], (5.5, 7.0), 120, 8),
+    "Strawberry": ("fruit", "fruit", "Rosaceae", (2.0, 6.0), (10, 26), ["Loamy", "Sandy"], (5.5, 6.8), 35, 5),
+    "Black pepper": ("fruit", "plantation", "Piperaceae", (5.0, 12.0), (22, 32), ["Loamy", "Laterite"], (5.0, 6.5), 100, 12),
+}
+
+for _name, (_category, _family, _botanical, _water, _temp, _soils, _ph, _root, _rock) in EXPANDED_CROPS.items():
+    CROPS[_name] = {
+        "category": _category, "family": _family, "botanical_family": _botanical,
+        "water": _water, "temp": _temp, "soils": _soils, "ph": list(_ph),
+        "root_depth_cm": _root, "rock_tolerance_pct": _rock,
+        "season": "Use local planting calendar", "sow": "Plant in a locally recommended climate window",
+        "harvest": "Cultivar and management dependent",
+        "irrigation": "Adjust irrigation from crop stage, rainfall, and observed root-zone moisture.",
+        "risk": "Medium", "market": "Confirm local buyers, grades, and prices before planting",
+        "yield": "Variety and production system dependent",
+        "pros": ["Adds crop diversity", "Can fit specific local markets and rotations"],
+        "cons": ["Suitability and returns depend on cultivar and local management"],
+        "actions": [
+            "Confirm a locally adapted cultivar, seed source, and buyer before land preparation.",
+            "Test soil pH, nutrients, texture, and drainage; prepare a fine seedbed or beds suited to the crop.",
+            "Use locally verified sowing date, planting depth, spacing, and seed or transplant quality.",
+            "Schedule irrigation around establishment, flowering, and fruit/grain fill using soil observations.",
+            "Apply nutrients from soil tests and local guidance; scout weekly and use integrated pest management.",
+            "Harvest at crop-specific maturity, grade produce, and plan crop-appropriate drying, cooling, or storage.",
+        ],
+    }
+
 BOTANICAL_FAMILIES = {
     "Pulses": "Fabaceae (species dependent)", "Groundnut": "Fabaceae", "Soybean": "Fabaceae",
     "Rice": "Poaceae", "Maize": "Poaceae", "Wheat": "Poaceae", "Millets": "Poaceae (species dependent)",
@@ -29,6 +80,11 @@ BOTANICAL_FAMILIES = {
 }
 for _crop_name, _botanical_family in BOTANICAL_FAMILIES.items():
     CROPS[_crop_name]["botanical_family"] = _botanical_family
+
+for _crop_name, _info in CROPS.items():
+    _info.setdefault("category", "field_crop")
+    _info.setdefault("root_depth_cm", 100 if _info.get("family") in {"cereal", "legume", "fiber"} else 60)
+    _info.setdefault("rock_tolerance_pct", 12)
 
 
 def catalog() -> list[dict[str, Any]]:
@@ -126,8 +182,8 @@ def custom_crop_profile(name: str, botanical_family: str = "Unknown") -> dict[st
         "market": "Confirm buyers and market access locally", "risk": "Unknown", "risk_profile": "Unknown",
         "pros": ["Allows a locally selected or experimental crop"],
         "cons": ["Climate fit, yield, inputs, pest profile, and market risks need local validation"],
-        "actions": ["Confirm species, cultivar, seed source, and intended market with local extension services.", "Test soil texture, pH, salinity, and nutrients; prepare a seedbed suited to the species and drainage.", "Use verified planting depth, spacing, and sowing dates for the chosen cultivar.", "Set irrigation and nutrient milestones using crop guidance, soil tests, and field observations.", "Identify local weeds, pests, and diseases; scout regularly and use integrated pest management.", "Harvest at cultivar-specific maturity, then dry, grade, and store using crop-specific safe handling guidance."],
-        "custom_profile": True, "profile_confidence": "User-defined; no crop-specific reference profile available.",
+        "actions": ["Identify the crop's accepted scientific name and cultivar with a local agricultural extension service before purchasing inputs.", "Obtain species-specific local guidance for sowing, soil pH, temperature, rainfall, irrigation, spacing, fertilizer, pests, harvest, and storage; no reference profile is available for this name."],
+        "custom_profile": True, "profile_confidence": "Unrated; no crop-specific reference profile available.",
     }
 
 
